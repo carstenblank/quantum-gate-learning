@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import qutip
 
 from utils import chop
@@ -32,12 +34,14 @@ def group_similar_interactions(net, eps=1e-3):
 
 
 def vanishing_elements(net, eps=1e-4):
+    """Return the elements corresponding to very small interactions."""
     Jvalues = net.J.get_value()
     small_elems = np.where(np.abs(Jvalues) < eps)[0]
     return [net.J_index_to_interaction(idx) for idx in small_elems]
 
 
 def normalize_phase(gate):
+    """Change the global phase to make the top-left element real."""
     return gate * np.exp(-1j * np.angle(gate[0, 0]))
 
 
@@ -67,6 +71,35 @@ def project_ancillae(net, ancillae_state):
     proj = qutip.tensor(identity_over_system, ancillae_proj)
     return proj * gate * proj
 
+
+def plot_gate(net, norm_phase=True, permutation=None, func='abs'):
+    gate = net.get_current_gate(return_Qobj=True)
+    if permutation is not None:
+        gate = gate.permute(permutation)
+        gate = normalize_phase(gate)
+
+    gate = gate.data.toarray()
+
+    if func == 'abs':
+        gate = np.abs(gate)
+    elif func == 'real':
+        gate = np.real(gate)
+    elif func == 'imag':
+        gate = np.imag(gate)
+    else:
+        raise ValueError('The possible values are abs, real, imag.')
+
+    f, ax = plt.subplots(figsize=(10, 10))
+    ax = sns.heatmap(gate,
+                     square=True, annot=True, fmt='1.2f',
+                     linewidth=1, cbar=False)
+    ax.hlines([8], *ax.get_xlim())
+    ax.vlines([8], *ax.get_ylim())
+
+
+# ----------------------------------------------------------------
+# Functions ot plot the fidelity vs J parameters for various random states.
+# ----------------------------------------------------------------
 
 def plot_fidelity_vs_J_live(net, xs, index_to_vary,
                             states=None, target_states=None,
